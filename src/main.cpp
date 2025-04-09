@@ -40,7 +40,7 @@ cv::Mat get_facial_features(cv::Mat faces1, int facenum, cv::Mat image1,
   recognizer->alignCrop(image1, faces1.row(facenum), aligned_face1);
   cv::Mat feature1;
   recognizer->feature(aligned_face1, feature1);
-  return feature1;
+  return feature1.clone();
 }
 
 // DNN tutorial: https://docs.opencv.org/4.x/d0/dd4/tutorial_dnn_face.html
