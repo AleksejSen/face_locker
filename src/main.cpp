@@ -8,6 +8,7 @@
 #include <string>
 #include <unordered_set>
 #include <utility>
+#include <tuple>
 
 constexpr auto FD_MODEL_PATH = "models/face_detection_yunet_2023mar.onnx";
 
@@ -19,13 +20,20 @@ const float NMS_THRESHOLD = 0.3f;
 // Keep this many bounding boxes
 const float TOP_K = 5000;
 
-std::pair<std::string, std::string> parse_args(int argc, char **argv) {
-  if (argc != 3) {
+std::tuple<bool, std::string, std::string> parse_args(int argc, char **argv) {
+  bool is_demo = false;
+  int base = 0;
+  if(static_cast<std::string>(argv[1]) == "-d"){
+    std::cout << "demo mode\n";
+    is_demo = true;
+    base += 1;
+  }
+  if (argc != (base + 3)) {
     std::cerr << "Usage: " << argv[0] << " <image1> <image2>" << std::endl;
     exit(1);
   }
 
-  return {argv[1], argv[2]};
+  return {is_demo, argv[base + 1], argv[base + 2]};
 }
 
 cv::Mat detect_faces(const std::shared_ptr<cv::FaceDetectorYN> face_detector,
@@ -98,20 +106,22 @@ int main(int argc, char **argv) {
   double cosine_similar_thresh = 0.363;
   double l2norm_similar_thresh = 1.128;
 
-  auto [img1_name, img2_name] = parse_args(argc, argv);
+  auto [is_demo, img1_name, img2_name] = parse_args(argc, argv);
 
   std::print("Comparing images: {} and {}\n", img1_name, img2_name);
 
   // Read the images
   cv::Mat image1 = cv::imread(img1_name);
   cv::Mat image2 = cv::imread(img2_name);
+  
+  if(is_demo){
+    cv::namedWindow("Image 1", cv::WINDOW_NORMAL);
+    cv::namedWindow("Image 2", cv::WINDOW_NORMAL);
 
-  cv::namedWindow("Image 1", cv::WINDOW_NORMAL);
-  cv::namedWindow("Image 2", cv::WINDOW_NORMAL);
-
-  imshow("Image 1", image1);
-  imshow("Image 2", image2);
-  cv::waitKey(0);
+    imshow("Image 1", image1);
+    imshow("Image 2", image2);
+    cv::waitKey(0);
+  }
 
   auto face_detector = cv::FaceDetectorYN::create(
       FD_MODEL_PATH, "", cv::Size(640, 480), THRESHOLD, NMS_THRESHOLD, TOP_K);
@@ -171,14 +181,16 @@ int main(int argc, char **argv) {
     }
   }
 
-  auto modified_image1 = image1.clone();
-  visualize(modified_image1, faces1, match_set1);
-  auto modified_image2 = image2.clone();
-  visualize(modified_image2, faces2, match_set2);
+  if(is_demo){
+    auto modified_image1 = image1.clone();
+    visualize(modified_image1, faces1, match_set1);
+    auto modified_image2 = image2.clone();
+    visualize(modified_image2, faces2, match_set2);
 
-  imshow("Image 1", modified_image1);
-  imshow("Image 2", modified_image2);
-  cv::waitKey(0);
+    imshow("Image 1", modified_image1);
+    imshow("Image 2", modified_image2);
+    cv::waitKey(0);
+  }
 
   return EXIT_SUCCESS;
 }
