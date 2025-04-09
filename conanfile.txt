@@ -7,14 +7,14 @@ CMakeToolchain
 
 # TODO: I can probably turn off more options
 [options]
+opencv*:with_dnn=True
 opencv*:with_eigen=False
 opencv*:with_ffmpeg=False
 opencv*:with_gtk=False
+opencv*:with_gtk=False
+opencv*:with_gui=False
+opencv*:with_qt=False
 opencv*:with_quirc=False
 opencv*:with_v4l=False
-opencv*:with_webp=False
-opencv*:with_gui=False
-opencv*:with_gtk=False
-opencv*:with_qt=False
 opencv*:with_wayland=False
-opencv*:with_x11=False
+opencv*:with_webp=False
