@@ -10,8 +10,7 @@ CMakeToolchain
 opencv*:with_dnn=True
 opencv*:with_eigen=False
 opencv*:with_ffmpeg=False
-opencv*:with_gtk=False
-opencv*:with_gtk=False
+opencv*:with_gtk=True
 opencv*:with_gui=False
 opencv*:with_qt=False
 opencv*:with_quirc=False
