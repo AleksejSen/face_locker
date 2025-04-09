@@ -1,0 +1,7 @@
+.cmake/
+.direnv
+CMakeFiles/
+CMakeUserPresets.json
+build/
+compile_commands.json
+out/
