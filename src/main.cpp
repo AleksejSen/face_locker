@@ -1,10 +1,21 @@
 #include <cstdlib>
+#include <opencv2/core/types.hpp>
 #include <opencv2/dnn/dnn.hpp>
 #include <opencv2/objdetect/face.hpp>
 #include <opencv2/opencv.hpp>
 #include <print>
 #include <string>
 #include <utility>
+
+constexpr auto FD_MODEL_PATH = "models/face_detection_yunet_2023mar.onnx";
+
+const std::string FR_MODEL_PATH = "models/face_recognition_sface_2021dec.onnx";
+
+const float THRESHOLD = 0.9f;
+// Used for bounding box suppression
+const float NMS_THRESHOLD = 0.3f;
+// Keep this many bounding boxes
+const float TOP_K = 5000;
 
 std::pair<std::string, std::string> parse_args(int argc, char **argv) {
   if (argc != 3) {
@@ -15,22 +26,12 @@ std::pair<std::string, std::string> parse_args(int argc, char **argv) {
   return {argv[1], argv[2]};
 }
 
-cv::Mat detect_faces(const cv::Mat &image) {
-
-  float threshold = 0.9f;
-  // Used for bounding box suppression
-  float nms_threshold = 0.3f;
-  // Keep this many bounding boxes
-  float top_k = 5000;
-
-  constexpr auto fd_modelPath = "models/face_detection_yunet_2023mar.onnx";
-
-  // TODO: Do I need one detector per image?
-  auto detector_1 = cv::FaceDetectorYN::create(fd_modelPath, "", image.size(),
-                                               threshold, nms_threshold, top_k);
+cv::Mat detect_faces(const std::shared_ptr<cv::FaceDetectorYN> face_detector,
+                     const cv::Mat &image) {
 
   cv::Mat faces;
-  detector_1->detect(image, faces);
+  face_detector->setInputSize(image.size());
+  face_detector->detect(image, faces);
   return faces;
 }
 
@@ -57,31 +58,28 @@ int main(int argc, char **argv) {
   cv::Mat image1 = cv::imread(img1_name);
   cv::Mat image2 = cv::imread(img2_name);
 
-  auto faces1 = detect_faces(image1);
+  auto face_detector = cv::FaceDetectorYN::create(
+      FD_MODEL_PATH, "", cv::Size(640, 480), THRESHOLD, NMS_THRESHOLD, TOP_K);
+
+  auto faces1 = detect_faces(face_detector, image1);
   if (faces1.empty()) {
     std::print("No faces found in image 1. Aborting.\n");
     return EXIT_FAILURE;
   }
   std::print("Found {} faces in image 1\n", faces1.rows);
-  for (int i = 0; i < faces1.rows; ++i) {
-  }
 
-  auto faces2 = detect_faces(image2);
+  auto faces2 = detect_faces(face_detector, image2);
   if (faces2.empty()) {
     std::print("No faces found in image 2. Aborting.\n");
     return EXIT_FAILURE;
   }
   std::print("Found {} faces in image 2\n", faces2.rows);
-  for (int i = 0; i < faces1.rows; ++i) {
-    std::print("Face {}: {} x {} x {}\n", i, faces1.at<float>(i, 0),
-               faces1.at<float>(i, 1), faces1.at<float>(i, 2));
-  }
 
-  auto recognizer = cv::FaceRecognizerSF::create(
-      "models/face_recognition_sface_2021dec.onnx", "");
+  auto face_recognizer = cv::FaceRecognizerSF::create(FR_MODEL_PATH, "");
 
   for (auto i = 0; i < faces1.rows; ++i) {
-    const auto feature1 = get_facial_features(faces1, i, image1, recognizer);
+    const auto feature1 =
+        get_facial_features(faces1, i, image1, face_recognizer);
 
     std::print("Looking for face {}-{}:{}x{}x{} in {}\n", img1_name, i,
                faces1.at<float>(i, 0), faces1.at<float>(i, 1),
@@ -92,12 +90,13 @@ int main(int argc, char **argv) {
                  faces2.at<float>(j, 0), faces2.at<float>(j, 1),
                  faces2.at<float>(j, 2), img1_name);
 
-      const auto feature2 = get_facial_features(faces2, j, image2, recognizer);
+      const auto feature2 =
+          get_facial_features(faces2, j, image2, face_recognizer);
 
       // Run feature extraction with given aligned_face
-      double cos_score = recognizer->match(
+      double cos_score = face_recognizer->match(
           feature1, feature2, cv::FaceRecognizerSF::DisType::FR_COSINE);
-      double L2_score = recognizer->match(
+      double L2_score = face_recognizer->match(
           feature1, feature2, cv::FaceRecognizerSF::DisType::FR_NORM_L2);
 
       std::print("    Cosine score: {} (threshold {}). Similar: {}\n",
