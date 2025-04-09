@@ -57,12 +57,10 @@ static void visualize(cv::Mat &input, cv::Mat &faces,
       box_color = cv::Scalar(0, 0, 255);
     }
     // Draw bounding box
-    rectangle(input,
-              cv::Rect2i(int(faces.at<float>(i, 0)), int(faces.at<float>(i, 1)),
-                         int(faces.at<float>(i, 2)),
-                         int(faces.at<float>(i, 3))),
-              box_color, thickness);
-    // Draw landmarks
+    cv::Rect face_rect(faces.at<float>(i, 0), faces.at<float>(i, 1),
+                       faces.at<float>(i, 2), faces.at<float>(i, 3));
+
+    cv::rectangle(input, face_rect, box_color, 2);    // Draw landmarks
     circle(input,
            cv::Point2i(int(faces.at<float>(i, 4)), int(faces.at<float>(i, 5))),
            2, cv::Scalar(255, 0, 0), thickness);
@@ -81,9 +79,16 @@ static void visualize(cv::Mat &input, cv::Mat &faces,
         cv::Point2i(int(faces.at<float>(i, 12)), int(faces.at<float>(i, 13))),
         2, cv::Scalar(0, 255, 255), thickness);
 
-    putText(input, std::format("{}", i),
-            cv::Point2i(int(faces.at<float>(i, 4)), int(faces.at<float>(i, 5))),
-            cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 2);
+// Add text under the rectangle
+    std::string text = "Face " + std::to_string(i);
+    int font_face = cv::FONT_HERSHEY_SIMPLEX;
+    double font_scale = 0.5;
+    int thickness = 1;
+    int baseline = 0;
+    cv::Size text_size = cv::getTextSize(text, font_face, font_scale, thickness, &baseline);
+    cv::Point text_org(face_rect.x, face_rect.y + face_rect.height + text_size.height + 5);
+    cv::putText(input, text, text_org, font_face, font_scale, 
+    cv::Scalar(0, 255, 0), thickness);
   }
 }
 
