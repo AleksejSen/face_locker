@@ -22,6 +22,7 @@
           cmake
           ninja
           pkg-config
+          entr
         ];
       };
     });
