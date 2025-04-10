@@ -24,11 +24,13 @@
           pkg-config
           entr
 
-          # Eval: for gtk support
+          # For GTK support
           gtk2
           glib
           libGL
           zlib
+
+          hyperfine
         ];
         LD_LIBRARY_PATH = "${pkgs.zlib}/lib:${pkgs.libGL}/lib:${pkgs.glib.out}/lib";
       };
