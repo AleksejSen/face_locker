@@ -8,6 +8,8 @@
 #include <string>
 #include <tuple>
 #include <unordered_set>
+#include <filesystem>
+#include <algorithm>
 
 constexpr auto FD_MODEL_PATH = "models/face_detection_yunet_2023mar.onnx";
 
@@ -43,6 +45,13 @@ std::tuple<Mode, std::string, std::string> parse_args(int argc, char **argv) {
     mode = Mode::Demo;
     base += 1;
   }
+
+  if (static_cast<std::string>(argv[1]) == "-s") {
+    std::cout << "search mode\n";
+    mode = Mode::Search;
+    base += 1;
+  }
+
   if (argc != (base + 3)) {
     std::cerr << "Usage: " << argv[0] << " <image1> <image2>" << std::endl;
     exit(1);
@@ -130,6 +139,7 @@ int main(int argc, char **argv) {
   // Read the images
   cv::Mat image1 = cv::imread(img1_name);
   cv::Mat image2 = cv::imread(img2_name);
+  
 
   if (mode == Mode::Demo) {
     cv::namedWindow("Image 1", cv::WINDOW_NORMAL);
@@ -151,6 +161,75 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
   }
   std::print("Found {} faces in image 1\n", faces1.rows);
+
+  if(mode == Mode::Search){
+    //extract folder from image1,
+    std::print("Search mode\n");
+    std::filesystem::path reference_pic = std::filesystem::path(static_cast<std::string>(img1_name));
+    std::filesystem::path paretn_dir = reference_pic.parent_path();
+    std::print("Reference Image: {}, Parent dir: {}\n", reference_pic.string(), paretn_dir.string());
+    std::unordered_set<std::filesystem::path> simmilar_images;
+
+    //Iterate thought all the images in parent dir
+    for(const auto & entry : std::filesystem::directory_iterator(paretn_dir)){
+      if(entry != reference_pic){
+        cv::Mat image2 = cv::imread(entry.path().string());
+        TIME_MEASURE_START(face_detect_image2)
+        auto faces2 = detect_faces(face_detector, image2);
+        TIME_MEASURE_END(face_detect_image2)
+
+        if (faces2.empty()) {
+          std::print("No faces found in image 2. Aborting.\n");
+          return EXIT_FAILURE;
+        }
+        std::print("Found {} faces in image 2\n", faces2.rows);
+
+        auto face_recognizer = cv::FaceRecognizerSF::create(FR_MODEL_PATH, "");
+
+        std::unordered_set<int> match_set1;
+        std::unordered_set<int> match_set2;
+
+        for (auto i = 0; i < faces1.rows; ++i) {
+          TIME_MEASURE_START(face_recog_image1)
+          const auto feature1 =
+            get_facial_features(faces1, i, image1, face_recognizer);
+          TIME_MEASURE_END(face_recog_image1)
+
+          for (auto j = 0; j < faces2.rows; ++j) {
+            TIME_MEASURE_START(face_recog_image2)
+            const auto feature2 =
+              get_facial_features(faces2, j, image2, face_recognizer);
+            TIME_MEASURE_END(face_recog_image2)
+
+            // Run feature extraction with given aligned_face
+            TIME_MEASURE_START(face_recog_match)
+            double cos_score = face_recognizer->match(
+              feature1, feature2, cv::FaceRecognizerSF::DisType::FR_COSINE);
+            double L2_score = face_recognizer->match(
+              feature1, feature2, cv::FaceRecognizerSF::DisType::FR_NORM_L2);
+            TIME_MEASURE_END(face_recog_match)
+
+            bool is_match = cos_score >= cosine_similar_thresh &&
+              L2_score <= l2norm_similar_thresh;
+
+            if (is_match) {
+              match_set1.insert(i);
+              match_set2.insert(j);
+
+              simmilar_images.insert(entry);
+            }
+          }
+        }
+      }
+    }
+    std::print("Rerence Image:{}\n", reference_pic.string());
+    std::print("Found Images with same faces:{}\n",simmilar_images.size());
+    for(const auto & picture : simmilar_images){
+        std::print("{}",picture.string());
+    }
+    std::print("\n");
+    return EXIT_SUCCESS;
+  }
 
   TIME_MEASURE_START(face_detect_image2)
   auto faces2 = detect_faces(face_detector, image2);
