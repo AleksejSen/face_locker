@@ -29,12 +29,18 @@ const float TOP_K = 5000;
                                                             name##_start);     \
   std::print("  🕐 {} took {} ms\n", #name, name##_duration.count());
 
-std::tuple<bool, std::string, std::string> parse_args(int argc, char **argv) {
-  bool is_demo = false;
+enum class Mode {
+  Normal,
+  Demo,
+  Search
+};
+
+std::tuple<Mode, std::string, std::string> parse_args(int argc, char **argv) {
+  Mode mode = Mode::Normal;
   int base = 0;
   if (static_cast<std::string>(argv[1]) == "-d") {
     std::cout << "demo mode\n";
-    is_demo = true;
+    mode = Mode::Demo;
     base += 1;
   }
   if (argc != (base + 3)) {
@@ -42,7 +48,7 @@ std::tuple<bool, std::string, std::string> parse_args(int argc, char **argv) {
     exit(1);
   }
 
-  return {is_demo, argv[base + 1], argv[base + 2]};
+  return {mode, argv[base + 1], argv[base + 2]};
 }
 
 cv::Mat detect_faces(const std::shared_ptr<cv::FaceDetectorYN> face_detector,
@@ -117,7 +123,7 @@ int main(int argc, char **argv) {
   double cosine_similar_thresh = 0.363;
   double l2norm_similar_thresh = 1.128;
 
-  auto [is_demo, img1_name, img2_name] = parse_args(argc, argv);
+  auto [mode, img1_name, img2_name] = parse_args(argc, argv);
 
   std::print("Comparing images: {} and {}\n", img1_name, img2_name);
 
@@ -125,7 +131,7 @@ int main(int argc, char **argv) {
   cv::Mat image1 = cv::imread(img1_name);
   cv::Mat image2 = cv::imread(img2_name);
 
-  if (is_demo) {
+  if (mode == Mode::Demo) {
     cv::namedWindow("Image 1", cv::WINDOW_NORMAL);
     cv::namedWindow("Image 2", cv::WINDOW_NORMAL);
 
@@ -202,7 +208,7 @@ int main(int argc, char **argv) {
     }
   }
 
-  if (is_demo) {
+  if (mode == Mode::Demo) {
     auto modified_image1 = image1.clone();
     visualize(modified_image1, faces1, match_set1);
     auto modified_image2 = image2.clone();
