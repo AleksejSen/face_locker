@@ -92,7 +92,7 @@ static void visualize(cv::Mat &input, cv::Mat &faces,
     cv::Rect face_rect(faces.at<float>(i, 0), faces.at<float>(i, 1),
                        faces.at<float>(i, 2), faces.at<float>(i, 3));
 
-    cv::rectangle(input, face_rect, box_color, 2); // Draw landmarks
+    cv::rectangle(input, face_rect, box_color, 10); // Draw landmarks
     circle(input,
            cv::Point2i(int(faces.at<float>(i, 4)), int(faces.at<float>(i, 5))),
            2, cv::Scalar(255, 0, 0), thickness);
