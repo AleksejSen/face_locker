@@ -6,9 +6,8 @@
 #include <opencv2/opencv.hpp>
 #include <print>
 #include <string>
-#include <unordered_set>
-#include <utility>
 #include <tuple>
+#include <unordered_set>
 
 constexpr auto FD_MODEL_PATH = "models/face_detection_yunet_2023mar.onnx";
 
@@ -20,10 +19,20 @@ const float NMS_THRESHOLD = 0.3f;
 // Keep this many bounding boxes
 const float TOP_K = 5000;
 
+// Convenience macro for fairly decent timing
+#define TIME_MEASURE_START(name)                                               \
+  auto name##_start = std::chrono::high_resolution_clock::now();
+#define TIME_MEASURE_END(name)                                                 \
+  auto name##_end = std::chrono::high_resolution_clock::now();                 \
+  auto name##_duration =                                                       \
+      std::chrono::duration_cast<std::chrono::milliseconds>(name##_end -       \
+                                                            name##_start);     \
+  std::print("  🕐 {} took {} ms\n", #name, name##_duration.count());
+
 std::tuple<bool, std::string, std::string> parse_args(int argc, char **argv) {
   bool is_demo = false;
   int base = 0;
-  if(static_cast<std::string>(argv[1]) == "-d"){
+  if (static_cast<std::string>(argv[1]) == "-d") {
     std::cout << "demo mode\n";
     is_demo = true;
     base += 1;
@@ -68,7 +77,7 @@ static void visualize(cv::Mat &input, cv::Mat &faces,
     cv::Rect face_rect(faces.at<float>(i, 0), faces.at<float>(i, 1),
                        faces.at<float>(i, 2), faces.at<float>(i, 3));
 
-    cv::rectangle(input, face_rect, box_color, 2);    // Draw landmarks
+    cv::rectangle(input, face_rect, box_color, 2); // Draw landmarks
     circle(input,
            cv::Point2i(int(faces.at<float>(i, 4)), int(faces.at<float>(i, 5))),
            2, cv::Scalar(255, 0, 0), thickness);
@@ -87,16 +96,18 @@ static void visualize(cv::Mat &input, cv::Mat &faces,
         cv::Point2i(int(faces.at<float>(i, 12)), int(faces.at<float>(i, 13))),
         2, cv::Scalar(0, 255, 255), thickness);
 
-// Add text under the rectangle
+    // Add text under the rectangle
     std::string text = "Face " + std::to_string(i);
     int font_face = cv::FONT_HERSHEY_SIMPLEX;
     double font_scale = 0.5;
     int thickness = 1;
     int baseline = 0;
-    cv::Size text_size = cv::getTextSize(text, font_face, font_scale, thickness, &baseline);
-    cv::Point text_org(face_rect.x, face_rect.y + face_rect.height + text_size.height + 5);
-    cv::putText(input, text, text_org, font_face, font_scale, 
-    cv::Scalar(0, 255, 0), thickness);
+    cv::Size text_size =
+        cv::getTextSize(text, font_face, font_scale, thickness, &baseline);
+    cv::Point text_org(face_rect.x,
+                       face_rect.y + face_rect.height + text_size.height + 5);
+    cv::putText(input, text, text_org, font_face, font_scale,
+                cv::Scalar(0, 255, 0), thickness);
   }
 }
 
@@ -113,8 +124,8 @@ int main(int argc, char **argv) {
   // Read the images
   cv::Mat image1 = cv::imread(img1_name);
   cv::Mat image2 = cv::imread(img2_name);
-  
-  if(is_demo){
+
+  if (is_demo) {
     cv::namedWindow("Image 1", cv::WINDOW_NORMAL);
     cv::namedWindow("Image 2", cv::WINDOW_NORMAL);
 
@@ -126,14 +137,18 @@ int main(int argc, char **argv) {
   auto face_detector = cv::FaceDetectorYN::create(
       FD_MODEL_PATH, "", cv::Size(640, 480), THRESHOLD, NMS_THRESHOLD, TOP_K);
 
+  TIME_MEASURE_START(face_detect_image1)
   auto faces1 = detect_faces(face_detector, image1);
+  TIME_MEASURE_END(face_detect_image1)
   if (faces1.empty()) {
     std::print("No faces found in image 1. Aborting.\n");
     return EXIT_FAILURE;
   }
   std::print("Found {} faces in image 1\n", faces1.rows);
 
+  TIME_MEASURE_START(face_detect_image2)
   auto faces2 = detect_faces(face_detector, image2);
+  TIME_MEASURE_END(face_detect_image2)
   if (faces2.empty()) {
     std::print("No faces found in image 2. Aborting.\n");
     return EXIT_FAILURE;
@@ -146,8 +161,10 @@ int main(int argc, char **argv) {
   std::unordered_set<int> match_set2;
 
   for (auto i = 0; i < faces1.rows; ++i) {
+    TIME_MEASURE_START(face_recog_image1)
     const auto feature1 =
         get_facial_features(faces1, i, image1, face_recognizer);
+    TIME_MEASURE_END(face_recog_image1)
 
     std::print("Looking for face {}-{}:{}x{}x{} in {}\n", img1_name, i,
                faces1.at<float>(i, 0), faces1.at<float>(i, 1),
@@ -158,14 +175,18 @@ int main(int argc, char **argv) {
                  faces2.at<float>(j, 0), faces2.at<float>(j, 1),
                  faces2.at<float>(j, 2), img1_name);
 
+      TIME_MEASURE_START(face_recog_image2)
       const auto feature2 =
           get_facial_features(faces2, j, image2, face_recognizer);
+      TIME_MEASURE_END(face_recog_image2)
 
       // Run feature extraction with given aligned_face
+      TIME_MEASURE_START(face_recog_match)
       double cos_score = face_recognizer->match(
           feature1, feature2, cv::FaceRecognizerSF::DisType::FR_COSINE);
       double L2_score = face_recognizer->match(
           feature1, feature2, cv::FaceRecognizerSF::DisType::FR_NORM_L2);
+      TIME_MEASURE_END(face_recog_match)
 
       bool is_match = cos_score >= cosine_similar_thresh &&
                       L2_score <= l2norm_similar_thresh;
@@ -181,7 +202,7 @@ int main(int argc, char **argv) {
     }
   }
 
-  if(is_demo){
+  if (is_demo) {
     auto modified_image1 = image1.clone();
     visualize(modified_image1, faces1, match_set1);
     auto modified_image2 = image2.clone();
@@ -192,10 +213,9 @@ int main(int argc, char **argv) {
     cv::waitKey(0);
   }
 
-  if(match_set1.empty()){
+  if (match_set1.empty()) {
     return EXIT_FAILURE;
-  }
-  else{
+  } else {
     return EXIT_SUCCESS;
   }
 }
