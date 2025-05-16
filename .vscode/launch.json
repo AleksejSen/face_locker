@@ -1,0 +1,46 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Launch C++ Program",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/ofc",
+      "args": [
+        "-d",
+        "/home/alex/Documents/Programming/innovation-ofc/pictures/arnold_t1.jpeg", 
+        "/home/alex/Documents/Programming/innovation-ofc/pictures/arnold-t2.jpg"
+      ],
+      "sudo": true,
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": true,
+      "MIMode": "gdb",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        },
+        {
+          "description": "Set breakpoint at main",
+          "text": "break main",
+          "ignoreFailures": true
+        }
+      ],
+      "miDebuggerPath": "/etc/profiles/per-user/alex/bin/gdb",
+      "logging": {
+        "moduleLoad": false,
+        "trace": true,
+        "engineLogging": false,
+        "programOutput": true,
+        "exceptions": true
+      },
+      
+      "preLaunchTask": "Read AgentIdentifier"
+
+    }
+  ]
+}
+

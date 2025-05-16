@@ -132,7 +132,7 @@ int main(int argc, char **argv) {
   double cosine_similar_thresh = 0.363;
   double l2norm_similar_thresh = 1.128;
 
-  auto [mode, img1_name, img2_name] = parse_args(argc, argv);
+  [mode, img1_name, img2_name] = parse_args(argc, argv);
 
   std::print("Comparing images: {} and {}\n", img1_name, img2_name);
 
