@@ -10,7 +10,7 @@ build:
 	ln -sf build/compile_commands.json .
 
 run:
-	./build/app/FaceLocker
+	./build/bin/FaceLocker --reference_picture pictures/arnold_t1.jpeg
 
 test:
 	@echo "Running tests in parallel using \$(JOBS) jobs..."
