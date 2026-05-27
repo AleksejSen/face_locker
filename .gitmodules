@@ -1,0 +1,6 @@
+[submodule "extern_libs/opencv"]
+	path = extern_libs/opencv
+	url = https://github.com/opencv/opencv.git
+[submodule "extern_libs/cli11"]
+	path = extern_libs/cli11
+	url = https://github.com/CLIUtils/CLI11.git

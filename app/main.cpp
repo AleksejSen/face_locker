@@ -1,15 +1,17 @@
+#include <algorithm>
 #include <cstdlib>
+#include <filesystem>
 #include <format>
+#include <iostream>
 #include <opencv2/core/types.hpp>
 #include <opencv2/dnn/dnn.hpp>
+#include <opencv2/highgui.hpp>
+#include <opencv2/imgproc.hpp>
 #include <opencv2/objdetect/face.hpp>
-#include <opencv2/opencv.hpp>
 #include <print>
 #include <string>
 #include <tuple>
 #include <unordered_set>
-#include <filesystem>
-#include <algorithm>
 
 constexpr auto FD_MODEL_PATH = "models/face_detection_yunet_2023mar.onnx";
 
@@ -31,11 +33,7 @@ const float TOP_K = 5000;
                                                             name##_start);     \
   std::print("  🕐 {} took {} ms\n", #name, name##_duration.count());
 
-enum class Mode {
-  Normal,
-  Demo,
-  Search
-};
+enum class Mode { Normal, Demo, Search };
 
 std::tuple<Mode, std::string, std::string> parse_args(int argc, char **argv) {
   Mode mode = Mode::Normal;
@@ -132,14 +130,13 @@ int main(int argc, char **argv) {
   double cosine_similar_thresh = 0.363;
   double l2norm_similar_thresh = 1.128;
 
-  [mode, img1_name, img2_name] = parse_args(argc, argv);
+  auto [mode, img1_name, img2_name] = parse_args(argc, argv);
 
   std::print("Comparing images: {} and {}\n", img1_name, img2_name);
 
   // Read the images
   cv::Mat image1 = cv::imread(img1_name);
   cv::Mat image2 = cv::imread(img2_name);
-  
 
   if (mode == Mode::Demo) {
     cv::namedWindow("Image 1", cv::WINDOW_NORMAL);
@@ -162,17 +159,19 @@ int main(int argc, char **argv) {
   }
   std::print("Found {} faces in image 1\n", faces1.rows);
 
-  if(mode == Mode::Search){
-    //extract folder from image1,
+  if (mode == Mode::Search) {
+    // extract folder from image1,
     std::print("Search mode\n");
-    std::filesystem::path reference_pic = std::filesystem::path(static_cast<std::string>(img1_name));
+    std::filesystem::path reference_pic =
+        std::filesystem::path(static_cast<std::string>(img1_name));
     std::filesystem::path paretn_dir = reference_pic.parent_path();
-    std::print("Reference Image: {}, Parent dir: {}\n", reference_pic.string(), paretn_dir.string());
+    std::print("Reference Image: {}, Parent dir: {}\n", reference_pic.string(),
+               paretn_dir.string());
     std::unordered_set<std::filesystem::path> simmilar_images;
 
-    //Iterate thought all the images in parent dir
-    for(const auto & entry : std::filesystem::directory_iterator(paretn_dir)){
-      if(entry != reference_pic){
+    // Iterate thought all the images in parent dir
+    for (const auto &entry : std::filesystem::directory_iterator(paretn_dir)) {
+      if (entry != reference_pic) {
         cv::Mat image2 = cv::imread(entry.path().string());
         TIME_MEASURE_START(face_detect_image2)
         auto faces2 = detect_faces(face_detector, image2);
@@ -192,25 +191,25 @@ int main(int argc, char **argv) {
         for (auto i = 0; i < faces1.rows; ++i) {
           TIME_MEASURE_START(face_recog_image1)
           const auto feature1 =
-            get_facial_features(faces1, i, image1, face_recognizer);
+              get_facial_features(faces1, i, image1, face_recognizer);
           TIME_MEASURE_END(face_recog_image1)
 
           for (auto j = 0; j < faces2.rows; ++j) {
             TIME_MEASURE_START(face_recog_image2)
             const auto feature2 =
-              get_facial_features(faces2, j, image2, face_recognizer);
+                get_facial_features(faces2, j, image2, face_recognizer);
             TIME_MEASURE_END(face_recog_image2)
 
             // Run feature extraction with given aligned_face
             TIME_MEASURE_START(face_recog_match)
             double cos_score = face_recognizer->match(
-              feature1, feature2, cv::FaceRecognizerSF::DisType::FR_COSINE);
+                feature1, feature2, cv::FaceRecognizerSF::DisType::FR_COSINE);
             double L2_score = face_recognizer->match(
-              feature1, feature2, cv::FaceRecognizerSF::DisType::FR_NORM_L2);
+                feature1, feature2, cv::FaceRecognizerSF::DisType::FR_NORM_L2);
             TIME_MEASURE_END(face_recog_match)
 
             bool is_match = cos_score >= cosine_similar_thresh &&
-              L2_score <= l2norm_similar_thresh;
+                            L2_score <= l2norm_similar_thresh;
 
             if (is_match) {
               match_set1.insert(i);
@@ -223,9 +222,9 @@ int main(int argc, char **argv) {
       }
     }
     std::print("Rerence Image:{}\n", reference_pic.string());
-    std::print("Found Images with same faces:{}\n",simmilar_images.size());
-    for(const auto & picture : simmilar_images){
-        std::print("{}",picture.string());
+    std::print("Found Images with same faces:{}\n", simmilar_images.size());
+    for (const auto &picture : simmilar_images) {
+      std::print("{}", picture.string());
     }
     std::print("\n");
     return EXIT_SUCCESS;
