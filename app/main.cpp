@@ -171,8 +171,8 @@ int main(int argc, char **argv) {
   double cosine_similar_thresh = 0.363;
   double l2norm_similar_thresh = 1.128;
 
-  // Get refrence picture
-  cv::Mat image1 = cv::imread(ref_picture_path);
+  // Get reference picture
+  cv::Mat reference_face_pic = cv::imread(ref_picture_path);
   cv::namedWindow("Reference Pic", cv::WINDOW_NORMAL);
 
   // Get PC Cam image
@@ -188,8 +188,21 @@ int main(int argc, char **argv) {
   // 1. Add face face recognition
   // 2. Compare faces
 
+  // Face Detection
+  // Reference picture
+  auto face_detector = cv::FaceDetectorYN::create(
+      FD_MODEL_PATH, "", cv::Size(640, 480), THRESHOLD, NMS_THRESHOLD, TOP_K);
+
+  auto ref_face = detect_faces(face_detector, reference_face_pic);
+  if (ref_face.empty()) {
+    std::print("No Reference Face Found. Aborting.\n");
+    return EXIT_FAILURE;
+  } else {
+    std::print("Reference Face Found\n");
+  }
+
   if (debug) {
-    cv::imshow("Reference Pic", image1);
+    cv::imshow("Reference Pic", reference_face_pic);
     cv::imshow("Camera Pic", cam_img);
   }
 
