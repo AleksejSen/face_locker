@@ -157,10 +157,15 @@ std::optional<cv::Mat> capture_from_webcam(int camera_index = 0) {
 int main(int argc, char **argv) {
 
   std::string ref_picture_path;
+  bool debug;
+
   CLI::App app{"Face Locker"};
   app.add_option("-r,--reference_picture", ref_picture_path,
                  "Reference Picture")
       ->required();
+
+  app.add_flag("-d,--debug", debug, "Debug Mode")->default_val(false);
+
   CLI11_PARSE(app, argc, argv);
 
   double cosine_similar_thresh = 0.363;
@@ -169,7 +174,6 @@ int main(int argc, char **argv) {
   // Get refrence picture
   cv::Mat image1 = cv::imread(ref_picture_path);
   cv::namedWindow("Reference Pic", cv::WINDOW_NORMAL);
-  cv::imshow("Reference Pic", image1);
 
   // Get PC Cam image
   auto cam_img_raw = capture_from_webcam(0);
@@ -179,7 +183,15 @@ int main(int argc, char **argv) {
   }
   cv::Mat cam_img = cam_img_raw.value();
   cv::namedWindow("Camera Pic", cv::WINDOW_NORMAL);
-  cv::imshow("Camera Pic", cam_img);
+
+  // TODO:
+  // 1. Add face face recognition
+  // 2. Compare faces
+
+  if (debug) {
+    cv::imshow("Reference Pic", image1);
+    cv::imshow("Camera Pic", cam_img);
+  }
 
   cv::waitKey(0);
 
