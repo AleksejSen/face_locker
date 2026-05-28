@@ -9,15 +9,14 @@ build:
 	cmake --build build -j\$(JOBS)
 	ln -sf build/compile_commands.json .
 
-run_true:
-	./build/bin/FaceLocker --debug --reference_picture pictures/arnold_t1.jpeg
-
+# run_true:
+# 	./build/bin/FaceLocker --debug --reference_picture pictures/arnold_t1.jpeg
+#
 
 run_false:
 	./build/bin/FaceLocker --debug --reference_picture pictures/rambo.jpg
 
-
-run_me:
+run:
 	./build/bin/FaceLocker --debug --reference_picture pictures/my_pic.jpeg
 
 run_family:
