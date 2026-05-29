@@ -31,6 +31,7 @@ add_subdirectory(extern_libs/cli11)
 
 # Enable CTest infrastructure
 enable_testing()
+add_subdirectory(tests)
 
 add_subdirectory(src)
 add_subdirectory(app)
