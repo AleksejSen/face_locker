@@ -13,6 +13,7 @@ target_link_libraries(${PROJECT_NAME}
         CLI11::CLI11
         data_types
         Utils
+        FaceEngine
 )
 
 target_include_directories(${PROJECT_NAME}
