@@ -1,8 +1,6 @@
 #include "opencv2/core/mat.hpp"
 #include <CLI/CLI.hpp>
-#include <algorithm>
 #include <cstdlib>
-#include <filesystem>
 #include <format>
 #include <iostream>
 #include <memory>
@@ -14,78 +12,7 @@
 #include <print>
 #include <ranges>
 #include <string>
-#include <tuple>
-#include <unordered_set>
 #include <vector>
-
-// cv::Mat detect_faces(const std::shared_ptr<cv::FaceDetectorYN> face_detector,
-//                      const cv::Mat &image) {
-//
-//   cv::Mat faces;
-//   face_detector->setInputSize(image.size());
-//   face_detector->detect(image, faces);
-//   return faces;
-// }
-//
-// cv::Mat get_facial_features(cv::Mat faces1, int facenum, cv::Mat image1,
-//                             std::shared_ptr<cv::FaceRecognizerSF> recognizer)
-//                             {
-//   cv::Mat aligned_face1;
-//   recognizer->alignCrop(image1, faces1.row(facenum), aligned_face1);
-//   cv::Mat feature1;
-//   recognizer->feature(aligned_face1, feature1);
-//   return feature1.clone();
-// }
-//
-// static void visualize(cv::Mat &input, cv::Mat &faces,
-//                       std::unordered_set<int> matches = {}) {
-//
-//   const int thickness = 2;
-//
-//   for (int i = 0; i < faces.rows; i++) {
-//     auto box_color = cv::Scalar(0, 0, 255);
-//     if (matches.find(i) != matches.end()) {
-//       box_color = cv::Scalar(0, 255, 0);
-//     }
-//     // Draw bounding box
-//     cv::Rect face_rect(faces.at<float>(i, 0), faces.at<float>(i, 1),
-//                        faces.at<float>(i, 2), faces.at<float>(i, 3));
-//
-//     cv::rectangle(input, face_rect, box_color, 10); // Draw landmarks
-//     circle(input,
-//            cv::Point2i(int(faces.at<float>(i, 4)), int(faces.at<float>(i,
-//            5))), 2, cv::Scalar(255, 0, 0), thickness);
-//     circle(input,
-//            cv::Point2i(int(faces.at<float>(i, 6)), int(faces.at<float>(i,
-//            7))), 2, cv::Scalar(0, 0, 255), thickness);
-//     circle(input,
-//            cv::Point2i(int(faces.at<float>(i, 8)), int(faces.at<float>(i,
-//            9))), 2, cv::Scalar(0, 255, 0), thickness);
-//     circle(
-//         input,
-//         cv::Point2i(int(faces.at<float>(i, 10)), int(faces.at<float>(i,
-//         11))), 2, cv::Scalar(255, 0, 255), thickness);
-//     circle(
-//         input,
-//         cv::Point2i(int(faces.at<float>(i, 12)), int(faces.at<float>(i,
-//         13))), 2, cv::Scalar(0, 255, 255), thickness);
-//
-//     // Add text under the rectangle
-//     // std::string text = "Face " + std::to_string(i);
-//     // int font_face = cv::FONT_HERSHEY_SIMPLEX;
-//     // double font_scale = 0.5;
-//     // int thickness = 1;
-//     // int baseline = 0;
-//     // cv::Size text_size =
-//     //     cv::getTextSize(text, font_face, font_scale, thickness,
-//     &baseline);
-//     // cv::Point text_org(face_rect.x,
-//     //                    face_rect.y + face_rect.height + text_size.height +
-//     //                    5);
-//     // cv::putText(input, text, text_org, font_face, font_scale,
-//     //             cv::Scalar(0, 255, 0), thickness);
-//   }
-// }
 
 // Returns a cv::Mat on success, or std::nullopt if the camera fails
 std::optional<cv::Mat> capture_from_webcam(int camera_index = 0) {
@@ -129,7 +56,8 @@ struct Config {
 };
 
 struct FacesData {
-  std::unordered_set<int> matched_face_indices;
+  std::vector<int> matched_face;
+  cv::Mat input_image;
   cv::Mat faces;
 };
 
@@ -137,6 +65,7 @@ class FaceRecognitionEngine {
 private:
   std::shared_ptr<cv::FaceDetectorYN> face_detector_;
   std::shared_ptr<cv::FaceRecognizerSF> face_recognizer_;
+  cv::Mat reference_image_;
   cv::Mat reference_faces_;
   std::vector<cv::Mat> reference_face_signatures_;
 
@@ -157,8 +86,8 @@ private:
 
   std::optional<std::vector<cv::Mat>>
   get_all_reference_facial_signatures(const Config &config) {
-    cv::Mat reference_face_pic = cv::imread(config.reference_picture_path);
-    reference_faces_ = detect_faces(reference_face_pic);
+    reference_image_ = cv::imread(config.reference_picture_path).clone();
+    reference_faces_ = detect_faces(reference_image_);
 
     if (reference_faces_.empty()) {
       return std::nullopt;
@@ -168,11 +97,77 @@ private:
     for (int i : std::views::iota(0, reference_faces_.rows)) {
       // Get face feature
       cv::Mat face_feature =
-          get_facial_features(reference_faces_, i, reference_face_pic);
+          get_facial_features(reference_faces_, i, reference_image_);
       // Save face feature
       reference_face_signatures_.push_back(face_feature);
     }
     return reference_face_signatures_;
+  }
+
+  // Face Visualization
+  void
+  draw_face_annotations(cv::Mat &canvas, const cv::Mat &faces,
+                        const std::vector<int> *matched_indices = nullptr) {
+    const int thickness = 2;
+
+    for (int i = 0; i < faces.rows; i++) {
+      // Default colors and text
+      auto box_color = cv::Scalar(0, 0, 255); // Red
+      std::string text = "Face " + std::to_string(i);
+
+      // If matched_indices is provided, determine color/text dynamically
+      if (matched_indices != nullptr) {
+        if (i < matched_indices->size() && (*matched_indices)[i] != -1) {
+          box_color = cv::Scalar(0, 255, 0); // Green for matches
+          text = "Matched Ref #" + std::to_string((*matched_indices)[i]);
+        } else {
+          text = "Unknown Face";
+        }
+      } else {
+        // No match vector passed means we are visualizing raw reference
+        // baselines
+        box_color = cv::Scalar(255, 0, 0); // Cyan/Blue for references
+        text = "Ref Target #" + std::to_string(i);
+      }
+
+      // Draw bounding box
+      cv::Rect face_rect(faces.at<float>(i, 0), faces.at<float>(i, 1),
+                         faces.at<float>(i, 2), faces.at<float>(i, 3));
+      cv::rectangle(canvas, face_rect, box_color, 10);
+
+      // Draw landmarks
+      circle(
+          canvas,
+          cv::Point2i(int(faces.at<float>(i, 4)), int(faces.at<float>(i, 5))),
+          2, cv::Scalar(255, 0, 0), thickness);
+      circle(
+          canvas,
+          cv::Point2i(int(faces.at<float>(i, 6)), int(faces.at<float>(i, 7))),
+          2, cv::Scalar(0, 0, 255), thickness);
+      circle(
+          canvas,
+          cv::Point2i(int(faces.at<float>(i, 8)), int(faces.at<float>(i, 9))),
+          2, cv::Scalar(0, 255, 0), thickness);
+      circle(
+          canvas,
+          cv::Point2i(int(faces.at<float>(i, 10)), int(faces.at<float>(i, 11))),
+          2, cv::Scalar(255, 0, 255), thickness);
+      circle(
+          canvas,
+          cv::Point2i(int(faces.at<float>(i, 12)), int(faces.at<float>(i, 13))),
+          2, cv::Scalar(0, 255, 255), thickness);
+
+      // Add text label cleanly above the rectangle
+      int font_face = cv::FONT_HERSHEY_SIMPLEX;
+      double font_scale = 0.6;
+      int text_thickness = 2;
+      cv::Point text_org(face_rect.x, face_rect.y - 10);
+      if (text_org.y < 0)
+        text_org.y = face_rect.y + 20;
+
+      cv::putText(canvas, text, text_org, font_face, font_scale, box_color,
+                  text_thickness);
+    }
   }
 
 public:
@@ -189,86 +184,59 @@ public:
     get_all_reference_facial_signatures(config);
   }
 
-  // std::optional<std::vector<cv::Mat>> get_faces_from_input(cv::Mat
-  // input_data) {
-  bool get_faces_from_input(cv::Mat input_data, const Config &config) {
+  FacesData get_faces_from_input(cv::Mat input_data, const Config &config) {
+    FacesData result;
+    result.input_image = input_data.clone();
     // Detect Faces in Input Picture
-    cv::Mat input_data_faces = detect_faces(input_data);
-    std::unordered_set<int> matched_face_indices;
-    FacesData face_data;
+    result.faces = detect_faces(result.input_image);
+    result.matched_face.assign(result.faces.rows, false);
+    bool any_match_found = false;
     // Go thought all detected faces
-    for (int index : std::views::iota(0, input_data_faces.rows)) {
+    for (int index : std::views::iota(0, result.faces.rows)) {
       // Normalize input face data
       cv::Mat input_data_face_feature =
-          get_facial_features(input_data_faces, index, input_data);
+          get_facial_features(result.faces, index, input_data);
       bool is_match = false;
-      // Compare Input faces to reference
+      // Compare face to reference picture faces
       for (const auto &ref_face_sig : reference_face_signatures_) {
         double score =
             face_recognizer_->match(ref_face_sig, input_data_face_feature);
         if (score >= config.confidence_threshold) {
-          is_match = true;
-          matched_face_indices.insert(index);
-          std::println("==== FACE MATCHES !====");
-          return true;
+          result.matched_face[index] = true;
+          any_match_found = true;
+          std::println("==== MATCHING FACE FOUND ====");
+          break;
         }
       }
     }
-    std::println("==== NO MATCHING FACES====");
-    return false;
+
+    if (!any_match_found) {
+      std::println("==== NO MATCHING FACE ====");
+    }
+
+    return result;
   }
 
-  static void visualize(cv::Mat &input, cv::Mat &faces,
-                        std::unordered_set<int> matches = {}) {
-
-    const int thickness = 2;
-
-    for (int i = 0; i < faces.rows; i++) {
-      auto box_color = cv::Scalar(0, 0, 255);
-      if (matches.find(i) != matches.end()) {
-        box_color = cv::Scalar(0, 255, 0);
-      }
-      // Draw bounding box
-      cv::Rect face_rect(faces.at<float>(i, 0), faces.at<float>(i, 1),
-                         faces.at<float>(i, 2), faces.at<float>(i, 3));
-
-      cv::rectangle(input, face_rect, box_color, 10); // Draw landmarks
-      circle(
-          input,
-          cv::Point2i(int(faces.at<float>(i, 4)), int(faces.at<float>(i, 5))),
-          2, cv::Scalar(255, 0, 0), thickness);
-      circle(
-          input,
-          cv::Point2i(int(faces.at<float>(i, 6)), int(faces.at<float>(i, 7))),
-          2, cv::Scalar(0, 0, 255), thickness);
-      circle(
-          input,
-          cv::Point2i(int(faces.at<float>(i, 8)), int(faces.at<float>(i, 9))),
-          2, cv::Scalar(0, 255, 0), thickness);
-      circle(
-          input,
-          cv::Point2i(int(faces.at<float>(i, 10)), int(faces.at<float>(i, 11))),
-          2, cv::Scalar(255, 0, 255), thickness);
-      circle(
-          input,
-          cv::Point2i(int(faces.at<float>(i, 12)), int(faces.at<float>(i, 13))),
-          2, cv::Scalar(0, 255, 255), thickness);
-
-      // Add text under the rectangle
-      // std::string text = "Face " + std::to_string(i);
-      // int font_face = cv::FONT_HERSHEY_SIMPLEX;
-      // double font_scale = 0.5;
-      // int thickness = 1;
-      // int baseline = 0;
-      // cv::Size text_size =
-      //     cv::getTextSize(text, font_face, font_scale, thickness,
-      //     &baseline);
-      // cv::Point text_org(face_rect.x,
-      //                    face_rect.y + face_rect.height + text_size.height
-      //                    + 5);
-      // cv::putText(input, text, text_org, font_face, font_scale,
-      //             cv::Scalar(0, 255, 0), thickness);
+  void visualize_references() {
+    if (reference_faces_.empty() || reference_image_.empty()) {
+      std::println("==== WARNING: Reference assets are empty! ====");
+      return;
     }
+
+    // Call the shared private drawing logic
+    draw_face_annotations(reference_image_, reference_faces_);
+
+    // Show in window
+    cv::namedWindow("Reference Pic", cv::WINDOW_NORMAL);
+    cv::imshow("Reference Pic", reference_image_);
+  }
+
+  void visualize(FacesData &face_data) {
+    draw_face_annotations(face_data.input_image, face_data.faces,
+                          &face_data.matched_face);
+
+    cv::namedWindow("Camera Pic", cv::WINDOW_NORMAL);
+    cv::imshow("Camera Pic", face_data.input_image);
   }
 };
 
@@ -292,85 +260,14 @@ int main(int argc, char **argv) {
   FaceRecognitionEngine face_recognizer(config);
 
   auto cam_img_raw = capture_from_webcam(0);
-  // TODO add check for empty cvalue
 
-  face_recognizer.get_faces_from_input(cam_img_raw.value(), config);
+  auto face_data =
+      face_recognizer.get_faces_from_input(cam_img_raw.value(), config);
 
-  // auto face_detector = cv::FaceDetectorYN::create(
-  //     config.face_detection_model.data(), "", cv::Size(640, 480),
-  //     config.confidence_threshold, config.non_max_suppression,
-  //     config.max_detections);
-  //
-  // auto face_recognizer =
-  //     cv::FaceRecognizerSF::create(config.face_recognition_model.data(), "");
-  //
-  // // Get reference picture
-  // std::println("=== Ref pic path:{}", config.reference_picture_path);
-  // cv::Mat reference_face_pic = cv::imread(config.reference_picture_path);
-  //
-  // // Detect Ref Face
-  // auto reference_faces = detect_faces(face_detector, reference_face_pic);
-  // // Structure to hold detected faces features
-  // // Faces need to be 'normalized' so thay can be easily compared depending
-  // on
-  // // their angle, position from camera etc
-  // std::vector<cv::Mat> reference_face_signatures;
-  // if (!reference_faces.empty()) {
-  //   reference_face_signatures.reserve(reference_faces.rows);
-  //
-  //   for (int i : std::views::iota(0, reference_faces.rows)) {
-  //     // Get face feature
-  //     cv::Mat face_feature = get_facial_features(
-  //         reference_faces, i, reference_face_pic, face_recognizer);
-  //     // Save face feature
-  //     reference_face_signatures.push_back(face_feature);
-  //   }
-  // } else {
-  //   std::println("==== No Reference Face Found. Aborting. ====");
-  //   return EXIT_FAILURE;
-  // }
-  //
-  // std::println("==== Reference Face Found:{} | Extracted {} ====",
-  //              reference_faces.rows, reference_face_signatures.size());
-  //
-  // auto cam_img_raw = capture_from_webcam(0);
-  //
-  // if (!cam_img_raw.has_value()) {
-  //   return EXIT_FAILURE;
-  // }
-  // cv::Mat cam_img = cam_img_raw.value();
-  //
-  // cv::Mat cam_faces = detect_faces(face_detector, cam_img);
-  // std::unordered_set<int> matched_face_indices;
-  // for (int i : std::views::iota(0, cam_faces.rows)) {
-  //   cv::Mat cam_face_feature =
-  //       get_facial_features(cam_faces, i, cam_img, face_recognizer);
-  //   bool is_match = false;
-  //   for (const auto &ref_face_sig : reference_face_signatures) {
-  //     // Calculate similarity
-  //     double score = face_recognizer->match(ref_face_sig, cam_face_feature);
-  //     std::println("==== Match index:{} ====", score);
-  //     if (score >= cosine_similar_thresh) {
-  //       std::println("==== Face matches !====");
-  //       is_match = true;
-  //       break;
-  //     }
-  //   }
-  //   if (is_match) {
-  //     matched_face_indices.insert(i);
-  //   }
-  //
-  //   if (config.debug_mode) {
-  //     visualize(cam_img, cam_faces, matched_face_indices);
-  //   }
-  // }
-  //
-  // if (config.debug_mode) {
-  //   cv::namedWindow("Reference Pic", cv::WINDOW_NORMAL);
-  //   cv::namedWindow("Camera Pic", cv::WINDOW_NORMAL);
-  //   cv::imshow("Reference Pic", reference_face_pic);
-  //   cv::imshow("Camera Pic", cam_img);
-  // }
+  if (config.debug_mode) {
+    face_recognizer.visualize_references();
+    face_recognizer.visualize(face_data);
+  }
 
-  // cv::waitKey(0);
+  cv::waitKey(0);
 }
