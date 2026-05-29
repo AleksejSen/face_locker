@@ -38,13 +38,17 @@ int main(int argc, char **argv) {
 
   auto cam_img_raw = capture_from_webcam(0);
 
-  auto face_data =
-      face_recognizer.get_faces_from_input(cam_img_raw.value(), config);
+  auto recognition_results =
+      face_recognizer.recognize_faces(cam_img_raw.value(), config);
 
   if (config.debug_mode) {
     face_recognizer.visualize_references();
-    face_recognizer.visualize(face_data);
+    face_recognizer.visualize(recognition_results);
+    cv::waitKey(0);
   }
 
-  cv::waitKey(0);
+  bool access_granted = std::ranges::any_of(recognition_results.matched_face,
+                                            [](int idx) { return idx != -1; });
+
+  return access_granted ? EXIT_SUCCESS : EXIT_FAILURE;
 }

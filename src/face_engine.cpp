@@ -105,8 +105,8 @@ void FaceRecognitionEngine::draw_face_annotations(
   }
 }
 
-FacesData FaceRecognitionEngine::get_faces_from_input(cv::Mat input_data,
-                                                      const Config &config) {
+FacesData FaceRecognitionEngine::recognize_faces(cv::Mat input_data,
+                                                 const Config &config) {
   FacesData result;
   result.input_image = input_data.clone();
   result.faces = detect_faces(result.input_image);

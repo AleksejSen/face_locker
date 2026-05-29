@@ -29,7 +29,28 @@ private:
 
 public:
   FaceRecognitionEngine(const Config &config);
-  FacesData get_faces_from_input(cv::Mat input_data, const Config &config);
+
+  /**
+   * @brief Detects and recognizes faces in an input image against pre-loaded
+   * references.
+   *
+   * This function executes the main face recognition pipeline:
+   * 1. Clones the input image to avoid modifying original frame buffers.
+   * 2. Detects bounding boxes and facial landmark coordinates using YuNet.
+   * 3. Extracts distinct facial feature embeddings for each discovered face via
+   * SFace.
+   * 4. Evaluates extracted features against the engine's stored reference
+   * signatures.
+   *
+   * @param input_data The source frame matrix (typically from a webcam capture
+   * or disk).
+   * @param config The runtime configuration containing thresholds and model
+   * specs.
+   * @return A populated FacesData structure containing the cloned image, face
+   * coordinates, and a mapping array of match results.
+   */
+  FacesData recognize_faces(cv::Mat input_data, const Config &config);
+
   void visualize_references();
   void visualize(FacesData &face_data);
 };

@@ -1,5 +1,6 @@
 # Detect number of processors for parallel testing
 JOBS := $(shell nproc 2>/dev/null || echo 1)
+CHECK_STATUS = && echo "\n === RECOGNITION SUCCESS ===" || echo "\n=== RECOGNITION FAILED ==="
 
 all: build
 
@@ -9,18 +10,23 @@ build:
 	cmake --build build -j\$(JOBS)
 	ln -sf build/compile_commands.json .
 
-# run_true:
-# 	./build/bin/FaceLocker --debug --reference_picture pictures/arnold_t1.jpeg
-#
-
 run_false:
-	./build/bin/FaceLocker --debug --reference_picture pictures/rambo.jpg
+	@./build/bin/FaceLocker \
+		--reference_picture pictures/rambo.jpg \
+		--debug 
+		$(CHECK_STATUS)
 
 run:
-	./build/bin/FaceLocker --debug --reference_picture pictures/my_pic.jpeg
+	@./build/bin/FaceLocker \
+		--reference_picture pictures/my_pic.jpeg \
+		--debug \
+		$(CHECK_STATUS)
 
-run_family:
-	./build/bin/FaceLocker --debug --reference_picture pictures/family.jpeg
+run_multi:
+	@./build/bin/FaceLocker \
+		--reference_picture pictures/family.jpeg \
+		--debug \
+		$(CHECK_STATUS)
 
 test:
 	@echo "Running tests in parallel using \$(JOBS) jobs..."
