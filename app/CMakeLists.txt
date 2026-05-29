@@ -11,6 +11,8 @@ target_link_libraries(${PROJECT_NAME}
         opencv_objdetect
         opencv_video
         CLI11::CLI11
+        data_types
+        Utils
 )
 
 target_include_directories(${PROJECT_NAME}
