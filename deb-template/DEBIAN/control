@@ -1,0 +1,7 @@
+Package: face-locker
+Version: 1.0.0
+Section: utils
+Priority: optional
+Architecture: amd64
+Maintainer: Developer <maintainer@example.com>
+Description: Automated Debian deployment package for deb_example.
