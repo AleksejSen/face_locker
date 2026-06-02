@@ -15,6 +15,7 @@ struct Config {
   float confidence_threshold = 0.6f;
   float non_max_suppression = 0.3f;
   float max_detections = 5000;
+  int interval = 10;
 };
 
 struct FacesData {

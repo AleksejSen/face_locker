@@ -141,14 +141,21 @@ void FaceRecognitionEngine::visualize_references() {
     std::println("==== WARNING: Reference assets are empty! ====");
     return;
   }
-  draw_face_annotations(reference_image_, reference_faces_);
+
+  cv::Mat display_img = reference_image_.clone();
+  draw_face_annotations(display_img, reference_faces_);
+
   cv::namedWindow("Reference Pic", cv::WINDOW_NORMAL);
-  cv::imshow("Reference Pic", reference_image_);
+  cv::imshow("Reference Pic", display_img);
 }
 
 void FaceRecognitionEngine::visualize(FacesData &face_data) {
-  draw_face_annotations(face_data.input_image, face_data.faces,
-                        &face_data.matched_face);
+  if (face_data.input_image.empty())
+    return;
+
+  cv::Mat display_img = face_data.input_image.clone();
+  draw_face_annotations(display_img, face_data.faces, &face_data.matched_face);
+
   cv::namedWindow("Camera Pic", cv::WINDOW_NORMAL);
-  cv::imshow("Camera Pic", face_data.input_image);
+  cv::imshow("Camera Pic", display_img);
 }

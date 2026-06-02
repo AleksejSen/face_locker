@@ -1,6 +1,6 @@
 VERSION := 1.0.0
 APP_NAME := face_locker
-IS_SERVICE := true
+IS_SERVICE := false
 
 # Detect number of processors for parallel testing
 JOBS := $(shell nproc 2>/dev/null || echo 1)
@@ -30,7 +30,6 @@ run_false:
 run:
 	@./build/bin/$(APP_NAME) \
 		--reference_picture pictures/my_pic.jpeg \
-		--debug \
 		$(CHECK_STATUS)
 
 run_multi:
