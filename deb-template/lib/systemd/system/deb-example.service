@@ -1,0 +1,12 @@
+[Unit]
+Description=deb_example System Daemon Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/face_locker
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

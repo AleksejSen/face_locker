@@ -5,11 +5,11 @@
       "name": "Launch C++ Program",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/build/ofc",
+      "program": "${workspaceFolder}/build/bin/FaceLocker",
       "args": [
         "-d",
-        "/home/alex/Documents/Programming/innovation-ofc/pictures/arnold_t1.jpeg", 
-        "/home/alex/Documents/Programming/innovation-ofc/pictures/arnold-t2.jpg"
+        "-r",
+        "/home/alex/Documents/Programming/Cpp/face_locker/pictures/my_pic.jpeg"
       ],
       "sudo": true,
       "stopAtEntry": false,
@@ -29,18 +29,7 @@
           "ignoreFailures": true
         }
       ],
-      "miDebuggerPath": "/etc/profiles/per-user/alex/bin/gdb",
-      "logging": {
-        "moduleLoad": false,
-        "trace": true,
-        "engineLogging": false,
-        "programOutput": true,
-        "exceptions": true
-      },
-      
-      "preLaunchTask": "Read AgentIdentifier"
-
+      "miDebuggerPath": "/usr/bin/gdb"
     }
   ]
 }
-
