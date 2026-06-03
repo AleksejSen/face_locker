@@ -1,13 +1,33 @@
 #include "face_engine.h"
 
 FaceRecognitionEngine::FaceRecognitionEngine(const Config &config) {
-  face_detector_ = cv::FaceDetectorYN::create(
-      config.face_detection_model.data(), "", cv::Size(640, 480),
-      config.confidence_threshold, config.non_max_suppression,
-      config.max_detections);
+  // 1. Create temporary vectors from the span data
+  std::vector<uchar> det_buffer(config.face_detection_model.begin(),
+                                config.face_detection_model.end());
 
+  std::vector<uchar> rec_buffer(config.face_recognition_model.begin(),
+                                config.face_recognition_model.end());
+
+  // Empty buffer needed for the network topology argument
+  std::vector<uchar> empty_config_buffer;
+
+  // 2. Initialize YuNet from memory buffer
+  face_detector_ = cv::FaceDetectorYN::create(
+      "onnx",                                 // Framework type
+      det_buffer,                             // Model weights vector
+      empty_config_buffer,                    // Empty architecture config
+      cv::Size(640, 480),                     // Default input image size
+      config.confidence_threshold,            // Score threshold
+      config.non_max_suppression,             // NMS threshold
+      static_cast<int>(config.max_detections) // Top K detections
+  );
+
+  // 3. Initialize SFace from memory buffer
   face_recognizer_ =
-      cv::FaceRecognizerSF::create(config.face_recognition_model.data(), "");
+      cv::FaceRecognizerSF::create("onnx",             // Framework type
+                                   rec_buffer,         // Model weights vector
+                                   empty_config_buffer // Empty config vector
+      );
 
   get_all_reference_facial_signatures(config);
 }

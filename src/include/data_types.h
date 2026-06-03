@@ -1,14 +1,19 @@
 #pragma once
-
 #include "opencv2/core/mat.hpp"
+#include <span>
 #include <vector>
 
+// These headers are automatically found via target_include_directories
+#include "face_detection_model.h"
+#include "face_recognition_model.h"
+
 struct Config {
-  // 1. Strict, compile-time member constants (shared across all instances)
-  static constexpr std::string_view face_detection_model =
-      "models/face_detection_yunet_2023mar.onnx";
-  static constexpr std::string_view face_recognition_model =
-      "models/face_recognition_sface_2021dec.onnx";
+  // Compile-time byte buffers pointing directly inside your binary data segment
+  static constexpr std::span<const unsigned char> face_detection_model{
+      face_detection_data, face_detection_size};
+
+  static constexpr std::span<const unsigned char> face_recognition_model{
+      face_recognition_data, face_recognition_size};
 
   std::string reference_picture_path = "";
   bool debug_mode = false;
